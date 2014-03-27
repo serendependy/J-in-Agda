@@ -1,49 +1,74 @@
+open import Data.Nat
+
+open import Algebra
+open import Data.Nat.Properties
+
+open CommutativeSemiring commutativeSemiring using (*-comm ; +-comm)
+
 module JData.JArray where
 
-open import Data.Nat
-open import Data.Vec
-
+open import Data.Vec renaming
+  (head to Vec-head ; tail to Vec-tail ; take to Vec-take ; drop to Vec-drop)
 open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
 open PropEq.≡-Reasoning
-
--- helpful definitions
-*/ : {n : ℕ} → Vec ℕ n → ℕ
-*/ [] = 1
-*/ (x ∷ vec) = x * */ vec
 
 Shape : ℕ → Set
 Shape = Vec ℕ
 
--- JArray is a flat vector whose length is the product fold of an
--- associated shape
-data JArray (A : Set) : ∀ {r} → (sh : Shape r) → Set where
-  jarray : ∀ {r} → (sh : Shape r) → Vec A (*/ sh) → JArray A sh
+*/ : ∀ {d} → Shape d → ℕ
+*/ [] = 1
+*/ (x ∷ sh) = x * */ sh
 
--- data declarations don't get projections for free
-private
-  module Dummy (A : Set) {r : ℕ} {s : Shape r} where
-    ravel : JArray A s → Vec A (*/ s)
-    ravel (jarray .s xs) = xs
 
-    rank : JArray A s → ℕ
-    rank j1 = r
+data JArray (A : Set) : {d : ℕ} → Shape d → Set where
+  _ρ́_ : ∀ {d len} → 
+        (sh : Shape d) → (xs : Vec A len) → ⦃ prop : len ≡ */ sh ⦄ → 
+        JArray A sh
 
-    shape : JArray A s → Shape r
-    shape j1 = s
-
-open Dummy public
-
--- */ [] ≡ 1
 JScalar : Set → Set
 JScalar A = JArray A []
 
 mkJScalar : {A : Set} → A → JScalar A
-mkJScalar a = jarray [] ([ a ])
+mkJScalar a = [] ρ́ ([ a ])
 
-jtest : JScalar ℕ
-jtest = mkJScalar 3
+private
+  module _ where
+    jtest : JArray ℕ [ 3 ]
+    jtest = [ 3 ] ρ́ (0 ∷ 0 ∷ [ 0 ])
 
-_mat+_ : {A B : Set} → {shape : Shape 2} → 
-         JArray ℕ shape → JArray ℕ shape → JArray ℕ shape
-_mat+_ {shape = s} (jarray .s xs₁) (jarray .s xs₂) = 
-       jarray s (zipWith _+_ xs₁ xs₂)
+
+private
+  module Projections {A : Set} {d : ℕ} {shape : Shape d} where
+    shapeVec : JArray A shape → Vec ℕ d
+    shapeVec j1 = shape
+
+    flatVec : JArray A shape → Vec A (*/ shape)
+    flatVec (_ρ́_ .shape xs ⦃ prop ⦄) rewrite prop = xs
+
+    dim : JArray A shape → ℕ
+    dim j1 = d
+
+open Projections public
+
+private
+  module JMonadicFunctions {A : Set} {d} {sh : Shape d} where -- not to be confused with monads
+    --open isCommutativeSemiring
+
+    head : {n : ℕ} → JArray A (suc n ∷ sh) → JArray A sh
+    head j1 = sh ρ́ Vec-take (*/ sh) (flatVec j1)
+
+    tail : {n : ℕ} → JArray A (suc n ∷ sh) → JArray A (n ∷ sh)
+    tail {n} j1 = (n ∷ sh) ρ́ Vec-drop (*/ sh) (flatVec j1)
+
+    ,́_ : JArray A sh → JArray A ([ */ sh ])
+    ,́ j1 = ([ */ sh ] ρ́ flatVec j1) ⦃ sym (
+      begin
+        */ sh * 1
+      ≡⟨ *-comm (*/ sh) 1 ⟩
+        */ sh + 0
+      ≡⟨ +-comm (*/ sh) 0 ⟩
+        */ sh
+      ∎) ⦄
+
+open JMonadicFunctions public
+    
