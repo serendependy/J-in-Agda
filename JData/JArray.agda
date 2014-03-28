@@ -1,11 +1,11 @@
+module JData.JArray where
+
 open import Data.Nat
 
 open import Algebra
 open import Data.Nat.Properties
 
-open CommutativeSemiring commutativeSemiring using (*-comm ; +-comm)
-
-module JData.JArray where
+open CommutativeSemiring commutativeSemiring using (*-comm ; +-comm ;  distribʳ)
 
 open import Data.Vec renaming
   (head to Vec-head ; tail to Vec-tail ; take to Vec-take ; drop to Vec-drop)
@@ -45,8 +45,18 @@ private
     flatVec : JArray A shape → Vec A (*/ shape)
     flatVec (_ρ́_ .shape xs ⦃ prop ⦄) rewrite prop = xs
 
+    flatVec_len-≡_ : (j1 : JArray A shape) → (len : ℕ) → 
+                     ⦃ prop : len ≡ */ shape ⦄ → Vec A len
+    (flatVec j1 len-≡ len) ⦃ prop ⦄ rewrite prop = flatVec j1
+
     dim : JArray A shape → ℕ
     dim j1 = d
+
+    flatLen : JArray A shape → ℕ
+    flatLen (_ρ́_ .{d} {len} .shape xs ⦃ prop ⦄) = len
+
+    shape-len-prop : (j : JArray A shape) → (flatLen j ≡ */ shape)
+    shape-len-prop (_ρ́_ .shape xs ⦃ prop ⦄) = prop
 
 open Projections public
 
@@ -71,4 +81,13 @@ private
       ∎) ⦄
 
 open JMonadicFunctions public
+
+
+private
+  module JDyadicFunctions {A : Set} {d} {sh : Shape d} where
     
+    take : ∀ {n} → (m : ℕ) → JArray A (m + n ∷ sh) → JArray A (m ∷ sh)
+    take {n} m j1 = (m ∷ sh) ρ́ Vec-take (m * */ sh)
+                    ((flatVec j1 len-≡ (m * */ sh + n * */ sh)) ⦃ sym (distribʳ (*/ sh) m n) ⦄)
+
+open JDyadicFunctions public
