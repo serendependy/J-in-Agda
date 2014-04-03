@@ -1,10 +1,7 @@
-module JData.JArray where
-
 open import Data.Nat
 open import Data.Fin
   using (Fin ; toℕ) renaming
   (zero to Fin-zero ; suc to Fin-suc)
-
 
 open import Algebra
 open import Data.Nat.Properties
@@ -17,8 +14,14 @@ open import Data.Vec
   renaming
     (head to Vec-head ; tail to Vec-tail ; take to Vec-take ; drop to Vec-drop)
 
+open import Data.Product
+
 open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
 open PropEq.≡-Reasoning
+
+open import J-Agda.Util.Properties
+
+module J-Agda.JData.JArray where
 
 Shape : ℕ → Set
 Shape = Vec ℕ
@@ -73,6 +76,10 @@ open Projections public
 private
   module JMonadicFunctions {A : Set} {d} {sh : Shape d} where -- not to be confused with monads
 
+    _ρ́-rebind_ : (sh' : Shape d) → JArray A sh → ⦃ prop : sh ≡ sh' ⦄ → 
+                JArray A sh'
+    (sh' ρ́-rebind j1) ⦃ prop ⦄ rewrite prop = j1
+
     head : {n : ℕ} → JArray A (suc n ∷ sh) → JArray A sh
     head j1 = sh ρ́ Vec-take (*/ sh) (flatVec j1)
 
@@ -104,7 +111,10 @@ private
                     (flatVec j1 with-≡ distribʳ (*/ sh) m n)
 
     lookup : ∀ {n} → Fin n → JArray A (n ∷ sh) → JArray A sh
-    lookup finn j1 = {!!}
-
+    lookup {n} finn j1 with lemma-Fin-to-sum finn 
+    ...                | k , fn+sk≡n =
+      let j1' = ((toℕ finn + suc k ∷ sh) ρ́-rebind j1)
+                ⦃ cong (λ x → x ∷ sh) (sym fn+sk≡n) ⦄
+      in head (drop (toℕ finn) j1')
 
 open JDyadicFunctions public
