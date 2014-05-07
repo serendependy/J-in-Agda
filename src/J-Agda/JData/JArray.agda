@@ -79,6 +79,11 @@ private
                 JArray A sh'
     (sh' ρ́-rebind j1) ⦃ prop ⦄ rewrite prop = j1
 
+    _ρ́-rebind²_ : ∀ {d'} → (sh' : Shape d') → JArray A sh → ⦃ prop₁ : d ≡ d' ⦄ → ⦃ prop₂ : subst Shape prop₁ sh ≡ sh' ⦄ → 
+                  JArray A sh'
+    _ρ́-rebind²_ sh' j ⦃ refl ⦄ ⦃ prop₂ ⦄ rewrite prop₂ = j
+
+
     head : {n : ℕ} → JArray A (suc n ∷ sh) → JArray A sh
     head j1 = sh ρ́ Vec-take (*/ sh) (flatVec j1)
 
@@ -126,13 +131,18 @@ private
     lookup-scalar (x ∷i idx) j = lookup-scalar idx (lookup x j)
 
     lookup-index : ∀ {d₁ d₂} → {sh₁ : Shape d₁} → {sh₂ : Shape d₂} → 
-                   (pre : Prefix sh₁ sh₂) → JIndex sh₁ → JArray A sh₂ → JArray A (proj₂ (shape-suffix pre))
+                   (pre : Prefix sh₁ sh₂) → JIndex sh₁ → JArray A sh₂ → JArray A (suffix pre)
     lookup-index {sh₂ = sh₂} ([]-pref .sh₂) []i j = j
     lookup-index (∷-pref .n pre) (_∷i_ {n} x idx) j = lookup-index pre idx (lookup x j)
 
-{-
-    lookup-scalar' :  ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
-    lookup-scalar' idx j = fromJScalar (lookup-index {!self-prefix (shapeVec j)!} idx j)
--}
+
+    lookup-scalar' : ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
+    lookup-scalar' {sh = sh} idx j = fromJScalar (([] ρ́-rebind² lookup-index self-pre idx j)
+                                                 ⦃ self-suff-len≡0 self-pre ⦄
+                                                 ⦃ self-suff≡[] self-pre ⦄)
+      where
+        self-pre : Prefix sh sh
+        self-pre = self-prefix sh
+
 
 open JIndexedFunctions public
