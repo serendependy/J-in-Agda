@@ -1,11 +1,9 @@
 
-open import J-Agda.JData.JArray using (Shape ; */)
+open import J-Agda.JData.JShape
 
 open import Data.Nat
-open import Data.Product
 open import Data.Vec
-  using ([] ; _∷_ ; _∷ʳ_)
-  renaming (take to Vec-take ; _++_ to _Vec-++_)
+  using ([] ; _∷_)
 
 open import Relation.Binary using (Rel ; REL)
 open import Relation.Binary.PropositionalEquality
@@ -39,3 +37,7 @@ prefix? (x ∷ sh₁) (x₁ ∷ sh₂)   | no ¬p     | pr = no (λ p∷ → ¬p
   where
     lemma : ∀ {x₁ x₂} → Prefix (x₁ ∷ sh₁) (x₂ ∷ sh₂) → x₁ ≡ x₂
     lemma {.x₂} {x₂} (∷-pref .x₂ pr₁) = refl
+
+
+
+-- REPA stuff

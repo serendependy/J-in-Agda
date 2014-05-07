@@ -23,13 +23,9 @@ open import J-Agda.Util.Properties
 
 module J-Agda.JData.JArray where
 
-Shape : ℕ → Set
-Shape = Vec ℕ
-
-*/ : ∀ {d} → Shape d → ℕ
-*/ [] = 1
-*/ (x ∷ sh) = x * */ sh
-
+open import J-Agda.JData.JShape
+open J-Agda.JData.JShape.ShapeAgreement
+open import J-Agda.JData.JIndex
 
 data JArray (A : Set) : {d : ℕ} → Shape d → Set where
   _ρ́_ : ∀ {d len} → 
@@ -39,8 +35,11 @@ data JArray (A : Set) : {d : ℕ} → Shape d → Set where
 JScalar : Set → Set
 JScalar A = JArray A []
 
-mkJScalar : {A : Set} → A → JScalar A
-mkJScalar a = [] ρ́ ([ a ])
+toJScalar : {A : Set} → A → JScalar A
+toJScalar a = [] ρ́ ([ a ])
+
+fromJScalar : {A : Set} → JScalar A → A
+fromJScalar (_ρ́_ .[] xs ⦃ prop ⦄ ) rewrite prop = Vec-head xs
 
 private
   module _ where
@@ -50,7 +49,7 @@ private
 
 private
   module Projections {A : Set} {d : ℕ} {shape : Shape d} where
-    shapeVec : JArray A shape → Vec ℕ d
+    shapeVec : JArray A shape →  Shape d
     shapeVec j1 = shape
 
     flatLen : JArray A shape → ℕ
@@ -118,3 +117,22 @@ private
       in head (drop (toℕ finn) j1')
 
 open JDyadicFunctions public
+
+private
+  module JIndexedFunctions {A : Set} where
+
+    lookup-scalar : ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
+    lookup-scalar []i j = fromJScalar j
+    lookup-scalar (x ∷i idx) j = lookup-scalar idx (lookup x j)
+
+    lookup-index : ∀ {d₁ d₂} → {sh₁ : Shape d₁} → {sh₂ : Shape d₂} → 
+                   (pre : Prefix sh₁ sh₂) → JIndex sh₁ → JArray A sh₂ → JArray A (proj₂ (shape-suffix pre))
+    lookup-index {sh₂ = sh₂} ([]-pref .sh₂) []i j = j
+    lookup-index (∷-pref .n pre) (_∷i_ {n} x idx) j = lookup-index pre idx (lookup x j)
+
+{-
+    lookup-scalar' :  ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
+    lookup-scalar' idx j = fromJScalar (lookup-index {!self-prefix (shapeVec j)!} idx j)
+-}
+
+open JIndexedFunctions public
