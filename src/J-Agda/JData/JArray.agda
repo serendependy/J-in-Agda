@@ -19,6 +19,9 @@ open import Data.Product
 open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
 open PropEq.≡-Reasoning
 
+open import Relation.Binary using (REL)
+import Level
+
 open import J-Agda.Util.Properties
 
 module J-Agda.JData.JArray where
@@ -73,16 +76,28 @@ private
 open Projections public
 
 private
-  module JMonadicFunctions {A : Set} {d} {sh : Shape d} where -- not to be confused with monads
+  module ShapeRebinds {A : Set} {d} {sh : Shape d} where -- shape substitutions
 
     _ρ́-rebind_ : (sh' : Shape d) → JArray A sh → ⦃ prop : sh ≡ sh' ⦄ → 
                 JArray A sh'
     (sh' ρ́-rebind j1) ⦃ prop ⦄ rewrite prop = j1
 
-    _ρ́-rebind²_ : ∀ {d'} → (sh' : Shape d') → JArray A sh → ⦃ prop₁ : d ≡ d' ⦄ → ⦃ prop₂ : subst Shape prop₁ sh ≡ sh' ⦄ → 
+    _ρ́-rebind₂_ : ∀ {d'} → (sh' : Shape d') → JArray A sh → ⦃ prop₁ : d ≡ d' ⦄ → ⦃ prop₂ : subst Shape prop₁ sh ≡ sh' ⦄ → 
                   JArray A sh'
-    _ρ́-rebind²_ sh' j ⦃ refl ⦄ ⦃ prop₂ ⦄ rewrite prop₂ = j
+    _ρ́-rebind₂_ sh' j ⦃ refl ⦄ ⦃ prop₂ ⦄ rewrite prop₂ = j
 
+
+    _ρ́-rebind₂_usingREL_ : ∀ {d'} → (sh' : Shape d') → JArray A sh → 
+                           (P : Set) → ⦃ p : P ⦄ → ⦃ fpd : P → d ≡ d' ⦄ → 
+                           ⦃ fps : P → subst Shape (fpd p) sh ≡ sh' ⦄ →
+                           JArray A sh'
+    _ρ́-rebind₂_usingREL_ sh' j P ⦃ p = p ⦄ ⦃ fpd = fpd ⦄ ⦃ fps = fps ⦄ with (fpd p) | (fps p)
+    ...                                                      | refl        | res = sh' ρ́-rebind j
+
+open ShapeRebinds public
+
+private
+  module JMonadicFunctions {A : Set} {d} {sh : Shape d} where -- not to be confused with monads
 
     head : {n : ℕ} → JArray A (suc n ∷ sh) → JArray A sh
     head j1 = sh ρ́ Vec-take (*/ sh) (flatVec j1)
@@ -137,9 +152,16 @@ private
 
 
     lookup-scalar' : ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
-    lookup-scalar' {sh = sh} idx j = fromJScalar (([] ρ́-rebind² lookup-index self-pre idx j)
+    lookup-scalar' {sh = sh} idx j = fromJScalar (([] ρ́-rebind₂ lookup-index self-pre idx j)
                                                  ⦃ self-suff-len≡0 self-pre ⦄
                                                  ⦃ self-suff≡[] self-pre ⦄)
+      where
+        self-pre : Prefix sh sh
+        self-pre = self-prefix sh
+
+    lookup-scalar'' : ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
+    lookup-scalar'' {sh = sh} idx j = fromJScalar (([] ρ́-rebind₂ lookup-index self-pre idx j usingREL Prefix sh sh )
+                                                    ⦃ self-pre ⦄ ⦃ {!self-suff-len≡0!} ⦄ )
       where
         self-pre : Prefix sh sh
         self-pre = self-prefix sh
