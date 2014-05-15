@@ -1,5 +1,6 @@
 open import Data.Vec using (Vec ; [] ; _∷_)
 open import Data.Nat
+open import Data.Nat.Properties using (n∸n≡0)
 open import Data.Product
 
 open import Relation.Binary using (Rel ; REL)
@@ -35,32 +36,26 @@ module ShapeAgreement where
     self-prefix (x ∷ sh) = ∷-pref x (self-prefix sh)
 
 
--- Suffix (needs to be wrapped in a Σ)
-    mkSuffix : ∀ {d₁ d₂} → {sh₁ : Shape d₁} → {sh₂ : Shape d₂} → 
-                   Prefix sh₁ sh₂ → Σ[ d-suf ∈ ℕ ] Shape d-suf
-    mkSuffix {.0} {d₂} {.[]} {sh₂} ([]-pref .sh₂) = d₂ , sh₂
-    mkSuffix (∷-pref s pref) = mkSuffix pref
+-- Suffix
+    suffix : ∀ {d₁ d₂} → {sh₁ : Shape d₁} → {sh₂ : Shape d₂} → 
+               Prefix sh₁ sh₂ → Shape (d₂ ∸ d₁)
+    suffix {.0} {d₂} {.[]} {sh₂} ([]-pref .sh₂) = sh₂
+    suffix (∷-pref s pre) = suffix pre
 
--- helper projections of suffix
-    private
-      module Suffix {d₁ d₂ : ℕ} {sh₁ : Shape d₁} {sh₂ : Shape d₂} where
+    suffix-len : ∀ {d₁ d₂} → {sh₁ : Shape d₁} → {sh₂ : Shape d₂} → 
+                 Prefix sh₁ sh₂ → ℕ
+    suffix-len {d₁ = d₁} {d₂ = d₂} _ = d₂ ∸ d₁
 
-        suffix-len : (pre : Prefix sh₁ sh₂) → ℕ
-        suffix-len pre = proj₁ (mkSuffix pre)
+-- Self suffix
+    self-suffix-len≡0 : ∀ {d} → {sh : Shape d } → ⦃ pre : Prefix sh sh ⦄ →
+                        d ∸ d ≡ 0
+    self-suffix-len≡0 {d = d} = n∸n≡0 d
 
-        suffix : (pre : Prefix sh₁ sh₂) → Shape (suffix-len pre)
-        suffix pre = proj₂ (mkSuffix pre)
-
-    open Suffix public
-
--- properties of suffix
-    self-suff-len≡0 : ∀ {d} → {sh : Shape d} → (pre : Prefix sh sh) → suffix-len pre ≡ 0
-    self-suff-len≡0 ([]-pref .[]) = refl
-    self-suff-len≡0 (∷-pref s pre) = self-suff-len≡0 pre
-
-    self-suff≡[] : ∀ {d} → {sh : Shape d} → (pre : Prefix sh sh) → subst Shape (self-suff-len≡0 pre) (suffix pre) ≡ []
-    self-suff≡[] ([]-pref .[]) = refl
-    self-suff≡[] (∷-pref s pre) = self-suff≡[] pre
+    self-suffix≡[] : ∀ {d} → {sh : Shape d} → ⦃ pre : Prefix sh sh ⦄ → 
+                    subst Shape (n∸n≡0 d) (suffix pre) ≡ []
+    self-suffix≡[] {d = d} ⦃ pre = pre ⦄
+        with subst Shape (n∸n≡0 d) (suffix pre)
+    ... | [] = refl
 
 
 -- helper function to unwrap a Prefix by the head argument

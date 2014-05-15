@@ -1,18 +1,19 @@
 open import Data.Nat
+open import Data.Nat.Properties using (n∸n≡0)
 open import Data.Fin
-  using (Fin ; toℕ) renaming
-  (zero to Fin-zero ; suc to Fin-suc)
+  using (Fin ; toℕ)
+  renaming (zero to Fin-zero ; suc to Fin-suc)
 
 open import Algebra
 open import Data.Nat.Properties
 
-open CommutativeSemiring commutativeSemiring using (*-comm ; +-comm ;  distribʳ)
+open CommutativeSemiring commutativeSemiring 
+  using (*-comm ; +-comm ;  distribʳ ; *-identity)
 
 open import Data.Vec
-  hiding
-    (lookup)
-  renaming
-    (head to Vec-head ; tail to Vec-tail ; take to Vec-take ; drop to Vec-drop)
+  hiding (lookup)
+  renaming (head to Vec-head ; tail to Vec-tail ; 
+            take to Vec-take ; drop to Vec-drop)
 
 open import Data.Product
 
@@ -31,46 +32,48 @@ open J-Agda.JData.JShape.ShapeAgreement
 open import J-Agda.JData.JIndex
 
 data JArray (A : Set) : {d : ℕ} → Shape d → Set where
-  _ρ́_ : ∀ {d len} → 
-        (sh : Shape d) → (xs : Vec A len) → ⦃ prop : len ≡ */ sh ⦄ → 
-        JArray A sh
+  shape-bind : ∀ {d len} → (sh : Shape d) → (xs : Vec A len) → 
+               ⦃ prop : len ≡ */ sh ⦄ → JArray A sh
 
 JScalar : Set → Set
 JScalar A = JArray A []
 
 toJScalar : {A : Set} → A → JScalar A
-toJScalar a = [] ρ́ ([ a ])
+toJScalar a = shape-bind [] [ a ]
 
 fromJScalar : {A : Set} → JScalar A → A
-fromJScalar (_ρ́_ .[] xs ⦃ prop ⦄ ) rewrite prop = Vec-head xs
+fromJScalar (shape-bind .[] xs ⦃ prop ⦄ ) rewrite prop = Vec-head xs
 
 private
   module _ where
     jtest : JArray ℕ [ 3 ]
-    jtest = [ 3 ] ρ́ (0 ∷ 0 ∷ [ 0 ])
+    jtest = shape-bind [ 3 ] (0 ∷ 0 ∷ [ 0 ])
+
+    -- I just realized there's a trick I can use to make this look like:
+    -- shape-bind-nary [ 3 ] 0 0 0
 
 
 private
-  module Projections {A : Set} {d : ℕ} {shape : Shape d} where
-    shapeVec : JArray A shape →  Shape d
-    shapeVec j1 = shape
+  module Projections {A : Set} {d : ℕ} {sh : Shape d} where
+    shapeVec : JArray A sh →  Shape d
+    shapeVec j1 = sh
 
-    flatLen : JArray A shape → ℕ
-    flatLen (_ρ́_ .{d} {len} .shape xs ⦃ prop ⦄) = len
+    flatLen : JArray A sh → ℕ
+    flatLen (shape-bind .{d} {len} .sh xs ⦃ prop ⦄) = len
 
-    shape-len-prop : (j : JArray A shape) → (flatLen j ≡ */ shape)
-    shape-len-prop (_ρ́_ .shape xs ⦃ prop ⦄) = prop
+    shape-len-prop : (j : JArray A sh) → (flatLen j ≡ */ sh)
+    shape-len-prop (shape-bind .sh xs ⦃ prop ⦄) = prop
 
-    flatVec : JArray A shape → Vec A (*/ shape)
-    flatVec (_ρ́_ .shape xs ⦃ prop ⦄) rewrite prop = xs
+    flatVec : JArray A sh → Vec A (*/ sh)
+    flatVec (shape-bind .sh xs ⦃ prop ⦄) rewrite prop = xs
 
-    flatVec_withLen_ : JArray A shape → (len : ℕ) → ⦃ prop : */ shape ≡ len ⦄ → Vec A len
+    flatVec_withLen_ : JArray A sh → (len : ℕ) → ⦃ prop : */ sh ≡ len ⦄ → Vec A len
     (flatVec j1 withLen len) ⦃ prop ⦄ rewrite sym prop = flatVec j1
 
-    flatVec_with-≡_ : JArray A shape → {len : ℕ} → (prop : */ shape ≡ len) → Vec A len
+    flatVec_with-≡_ : JArray A sh → {len : ℕ} → (prop : */ sh ≡ len) → Vec A len
     flatVec j1 with-≡ prop rewrite sym prop = flatVec j1
 
-    dim : JArray A shape → ℕ
+    dim : JArray A sh → ℕ
     dim j1 = d
 
 open Projections public
@@ -78,65 +81,53 @@ open Projections public
 private
   module ShapeRebinds {A : Set} {d} {sh : Shape d} where -- shape substitutions
 
-    _ρ́-rebind_ : (sh' : Shape d) → JArray A sh → ⦃ prop : sh ≡ sh' ⦄ → 
+    shape-rebind : (sh' : Shape d) → JArray A sh → ⦃ prop : sh ≡ sh' ⦄ → 
                 JArray A sh'
-    (sh' ρ́-rebind j1) ⦃ prop ⦄ rewrite prop = j1
+    (shape-rebind sh' j1) ⦃ prop ⦄ rewrite prop = j1
 
-    _ρ́-rebind₂_ : ∀ {d'} → (sh' : Shape d') → JArray A sh → ⦃ prop₁ : d ≡ d' ⦄ → ⦃ prop₂ : subst Shape prop₁ sh ≡ sh' ⦄ → 
-                  JArray A sh'
-    _ρ́-rebind₂_ sh' j ⦃ refl ⦄ ⦃ prop₂ ⦄ rewrite prop₂ = j
+    shape-rebind₂ : ∀ {d'} → (sh' : Shape d') → JArray A sh →
+      ⦃ prop₁ : d ≡ d' ⦄ → ⦃ prop₂ : subst Shape prop₁ sh ≡ sh' ⦄ →  JArray A sh'
+    shape-rebind₂ sh' j ⦃ refl ⦄ ⦃ prop₂ ⦄ rewrite prop₂ = j
 
-
-    _ρ́-rebind₂_usingREL_ : ∀ {d'} → (sh' : Shape d') → JArray A sh → 
-                           (P : Set) → ⦃ p : P ⦄ → ⦃ fpd : P → d ≡ d' ⦄ → 
-                           ⦃ fps : P → subst Shape (fpd p) sh ≡ sh' ⦄ →
-                           JArray A sh'
-    _ρ́-rebind₂_usingREL_ sh' j P ⦃ p = p ⦄ ⦃ fpd = fpd ⦄ ⦃ fps = fps ⦄ with (fpd p) | (fps p)
-    ...                                                      | refl        | res = sh' ρ́-rebind j
 
 open ShapeRebinds public
 
 private
-  module JMonadicFunctions {A : Set} {d} {sh : Shape d} where -- not to be confused with monads
+  module JUnaryFunctions {A : Set} {d} {sh : Shape d} where
 
     head : {n : ℕ} → JArray A (suc n ∷ sh) → JArray A sh
-    head j1 = sh ρ́ Vec-take (*/ sh) (flatVec j1)
+    head j1 = shape-bind sh (Vec-take (*/ sh) (flatVec j1))
 
     tail : {n : ℕ} → JArray A (suc n ∷ sh) → JArray A (n ∷ sh)
-    tail {n} j1 = (n ∷ sh) ρ́ Vec-drop (*/ sh) (flatVec j1)
+    tail {n} j1 = shape-bind (n ∷ sh) (Vec-drop (*/ sh) (flatVec j1))
 
-    ,́_ : JArray A sh → JArray A ([ */ sh ])
-    ,́ j1 = ([ */ sh ] ρ́ flatVec j1) ⦃ sym (
-      begin
-        */ sh * 1
-      ≡⟨ *-comm (*/ sh) 1 ⟩
-        */ sh + 0
-      ≡⟨ +-comm (*/ sh) 0 ⟩
-        */ sh
-      ∎) ⦄
+    ravel : JArray A sh → JArray A ([ */ sh ])
+    ravel (shape-bind .sh xs ⦃ prop ⦄) rewrite prop = 
+          (shape-bind [ */ sh ] xs) ⦃ sym (proj₂ *-identity (*/ sh)) ⦄
 
-open JMonadicFunctions public
+
+open JUnaryFunctions public
 
 
 private
-  module JDyadicFunctions {A : Set} {d} {sh : Shape d} where
+  module JBinaryFunctions {A : Set} {d} {sh : Shape d} where
 
     take : ∀ {n} → (m : ℕ) → JArray A (m + n ∷ sh) → JArray A (m ∷ sh)
-    take {n} m j1 = (m ∷ sh) ρ́ Vec-take (m * */ sh)
-                    (flatVec j1 with-≡ distribʳ (*/ sh) m n)
+    take {n} m j1 = shape-bind (m ∷ sh) (Vec-take (m * */ sh)
+                    (flatVec j1 with-≡ distribʳ (*/ sh) m n))
 
     drop : ∀ {n} → (m : ℕ) → JArray A (m + n ∷ sh) → JArray A (n ∷ sh)
-    drop {n} m j1 = (n ∷ sh) ρ́ Vec-drop (m * */ sh) 
-                    (flatVec j1 with-≡ distribʳ (*/ sh) m n)
+    drop {n} m j1 = shape-bind (n ∷ sh) (Vec-drop (m * */ sh) 
+                    (flatVec j1 with-≡ distribʳ (*/ sh) m n))
 
     lookup : ∀ {n} → Fin n → JArray A (n ∷ sh) → JArray A sh
     lookup {n} finn j1 with lemma-Fin-to-sum finn 
     ...                | k , fn+sk≡n =
-      let j1' = ((toℕ finn + suc k ∷ sh) ρ́-rebind j1)
+      let j1' = (shape-rebind (toℕ finn + suc k ∷ sh) j1)
                 ⦃ cong (λ x → x ∷ sh) (sym fn+sk≡n) ⦄
       in head (drop (toℕ finn) j1')
 
-open JDyadicFunctions public
+open JBinaryFunctions public
 
 private
   module JIndexedFunctions {A : Set} where
@@ -146,25 +137,15 @@ private
     lookup-scalar (x ∷i idx) j = lookup-scalar idx (lookup x j)
 
     lookup-index : ∀ {d₁ d₂} → {sh₁ : Shape d₁} → {sh₂ : Shape d₂} → 
-                   (pre : Prefix sh₁ sh₂) → JIndex sh₁ → JArray A sh₂ → JArray A (suffix pre)
+      (pre : Prefix sh₁ sh₂) → JIndex sh₁ → JArray A sh₂ → JArray A (suffix pre)
     lookup-index {sh₂ = sh₂} ([]-pref .sh₂) []i j = j
-    lookup-index (∷-pref .n pre) (_∷i_ {n} x idx) j = lookup-index pre idx (lookup x j)
-
+    lookup-index (∷-pref .n pre) (_∷i_ {n} x idx) j =
+                 lookup-index pre idx (lookup x j)
 
     lookup-scalar' : ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
-    lookup-scalar' {sh = sh} idx j = fromJScalar (([] ρ́-rebind₂ lookup-index self-pre idx j)
-                                                 ⦃ self-suff-len≡0 self-pre ⦄
-                                                 ⦃ self-suff≡[] self-pre ⦄)
-      where
-        self-pre : Prefix sh sh
-        self-pre = self-prefix sh
-
-    lookup-scalar'' : ∀ {d} → {sh : Shape d} → JIndex sh → JArray A sh → A
-    lookup-scalar'' {sh = sh} idx j = fromJScalar (([] ρ́-rebind₂ lookup-index self-pre idx j usingREL Prefix sh sh )
-                                                    ⦃ self-pre ⦄ ⦃ {!self-suff-len≡0!} ⦄ )
-      where
-        self-pre : Prefix sh sh
-        self-pre = self-prefix sh
-
+    lookup-scalar' {d = d} {sh = sh} idx j =
+      let self-pre = self-prefix sh in
+        fromJScalar ((shape-rebind₂ [] (lookup-index self-pre idx j))
+          ⦃ self-suffix-len≡0 ⦄ ⦃ self-suffix≡[] ⦄ )
 
 open JIndexedFunctions public
