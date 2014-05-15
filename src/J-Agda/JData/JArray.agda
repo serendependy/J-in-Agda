@@ -15,7 +15,7 @@ open import Data.Vec
   renaming (head to Vec-head ; tail to Vec-tail ; 
             take to Vec-take ; drop to Vec-drop)
 
-open import Data.Product
+open import Data.Product hiding (map)
 
 open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
 open PropEq.≡-Reasoning
@@ -149,3 +149,8 @@ private
           ⦃ self-suffix-len≡0 ⦄ ⦃ self-suffix≡[] ⦄ )
 
 open JIndexedFunctions public
+
+
+pointwise-map₁ : {A B : Set} → ∀ {d} → {sh : Shape d} →
+                 (A → B) → JArray A sh → JArray B sh
+pointwise-map₁ f (shape-bind sh xs) = shape-bind sh (map f xs)
