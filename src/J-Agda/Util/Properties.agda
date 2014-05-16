@@ -1,4 +1,6 @@
 open import Algebra
+open import Algebra.FunctionProperties
+  using (Op₁ ; Op₂ ; Commutative)
 
 open import Data.Nat
 open import Data.Nat.Properties
@@ -35,4 +37,6 @@ lemma-Fin-to-sum {zero} ()
 lemma-Fin-to-sum {suc n'} fn with lemma-≤-to-sum (prop-toℕ-≤ fn)
 ...                      | l , fn+l≡n' = 
                          l , trans (m+1+n≡1+m+n (toℕ fn) l) (cong suc fn+l≡n')
--- lemma-≤-to-sum (s≤s (prop-toℕ-≤ fn))
+
+module FoldProps {A : Set} (_·_ : Op₂ A) where
+  

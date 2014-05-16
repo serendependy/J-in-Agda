@@ -1,4 +1,4 @@
-open import Data.Vec using (Vec ; [] ; _∷_)
+open import Data.Vec using (Vec ; [] ; _∷_ ; foldr)
 open import Data.Nat
 open import Data.Nat.Properties using (n∸n≡0)
 open import Data.Product
@@ -16,8 +16,7 @@ Shape : ℕ → Set
 Shape = Vec ℕ
 
 */ : ∀ {d} → Shape d → ℕ
-*/ [] = 1
-*/ (x ∷ sh) = x * */ sh
+*/ = foldr (λ _ → ℕ) _*_ 1
 
 module ShapeAgreement where
 

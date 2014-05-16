@@ -13,7 +13,8 @@ open CommutativeSemiring commutativeSemiring
 open import Data.Vec
   hiding (lookup)
   renaming (head to Vec-head ; tail to Vec-tail ; 
-            take to Vec-take ; drop to Vec-drop)
+            take to Vec-take ; drop to Vec-drop ;
+            replicate to Vec-rep ; _++_ to _Vec-++_)
 
 open import Data.Product hiding (map)
 
@@ -59,7 +60,7 @@ private
     shapeVec j1 = sh
 
     flatLen : JArray A sh → ℕ
-    flatLen (shape-bind .{d} {len} .sh xs ⦃ prop ⦄) = len
+    flatLen (shape-bind .{d} {len} .sh xs) = len
 
     shape-len-prop : (j : JArray A sh) → (flatLen j ≡ */ sh)
     shape-len-prop (shape-bind .sh xs ⦃ prop ⦄) = prop
@@ -105,6 +106,9 @@ private
     ravel (shape-bind .sh xs ⦃ prop ⦄) rewrite prop = 
           (shape-bind [ */ sh ] xs) ⦃ sym (proj₂ *-identity (*/ sh)) ⦄
 
+    itemize : JArray A sh → JArray A (1 ∷ sh)
+    itemize (shape-bind .sh xs ⦃ prop ⦄ ) rewrite prop =
+      shape-bind (1 ∷ sh) xs ⦃ sym (proj₁ *-identity (*/ sh)) ⦄
 
 open JUnaryFunctions public
 
@@ -113,19 +117,29 @@ private
   module JBinaryFunctions {A : Set} {d} {sh : Shape d} where
 
     take : ∀ {n} → (m : ℕ) → JArray A (m + n ∷ sh) → JArray A (m ∷ sh)
-    take {n} m j1 = shape-bind (m ∷ sh) (Vec-take (m * */ sh)
-                    (flatVec j1 with-≡ distribʳ (*/ sh) m n))
+    take {n} m j = shape-bind (m ∷ sh) (Vec-take (m * */ sh)
+                    (flatVec j with-≡ distribʳ (*/ sh) m n))
 
     drop : ∀ {n} → (m : ℕ) → JArray A (m + n ∷ sh) → JArray A (n ∷ sh)
-    drop {n} m j1 = shape-bind (n ∷ sh) (Vec-drop (m * */ sh) 
-                    (flatVec j1 with-≡ distribʳ (*/ sh) m n))
+    drop {n} m j = shape-bind (n ∷ sh) (Vec-drop (m * */ sh) 
+                    (flatVec j with-≡ distribʳ (*/ sh) m n))
 
     lookup : ∀ {n} → Fin n → JArray A (n ∷ sh) → JArray A sh
-    lookup {n} finn j1 with lemma-Fin-to-sum finn 
-    ...                | k , fn+sk≡n =
-      let j1' = (shape-rebind (toℕ finn + suc k ∷ sh) j1)
+    lookup {n} finn j with lemma-Fin-to-sum finn 
+    ...               | k , fn+sk≡n =
+      let j' = (shape-rebind (toℕ finn + suc k ∷ sh) j)
                 ⦃ cong (λ x → x ∷ sh) (sym fn+sk≡n) ⦄
-      in head (drop (toℕ finn) j1')
+      in head (drop (toℕ finn) j')
+
+    _++_ : ∀ {s s'} → JArray A (s ∷ sh) → JArray A (s' ∷ sh) → JArray A (s + s' ∷ sh)
+    _++_ {s} {s'} j k = shape-bind (s + s' ∷ sh) (flatVec j Vec-++ flatVec k)
+                        ⦃ sym (distribʳ (*/ sh) s s') ⦄
+
+{-
+    replicate : ∀ {d'} → (sh' : Shape d') → JArray A sh → JArray A (sh' Vec-++ sh)
+    replicate sh' (shape-bind .sh xs ⦃ prop ⦄) rewrite prop =
+    shape-bind (sh' Vec-++ sh) {!!}
+-}
 
 open JBinaryFunctions public
 
@@ -154,3 +168,6 @@ open JIndexedFunctions public
 pointwise-map₁ : {A B : Set} → ∀ {d} → {sh : Shape d} →
                  (A → B) → JArray A sh → JArray B sh
 pointwise-map₁ f (shape-bind sh xs) = shape-bind sh (map f xs)
+
+integers : ∀ {d} → (sh : Shape d) → JArray ℕ sh
+integers sh = shape-bind sh (tabulate toℕ)
