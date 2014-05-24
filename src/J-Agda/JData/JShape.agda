@@ -1,11 +1,20 @@
-open import Data.Vec using (Vec ; [] ; _∷_ ; foldr)
+open import Algebra
+
+open import Data.Vec using (Vec ; [] ; _∷_ ; foldr ; _++_)
+open import Data.Vec.Properties
+open import Data.Vec.Equality
+
 open import Data.Nat
-open import Data.Nat.Properties using (n∸n≡0)
+open import Data.Nat.Properties
+  using (n∸n≡0 ; commutativeSemiring)
 open import Data.Product
 
-open import Relation.Binary using (Rel ; REL)
+open CommutativeSemiring commutativeSemiring 
+  using (*-identity ; *-assoc)
+
+open import Relation.Binary using (Rel ; REL ; Setoid)
 open import Relation.Binary.PropositionalEquality
-  using (_≡_ ; refl ; subst)
+  renaming (isEquivalence to isEquiv)
 open import Relation.Nullary
 
 import Level
@@ -17,6 +26,25 @@ Shape = Vec ℕ
 
 */ : ∀ {d} → Shape d → ℕ
 */ = foldr (λ _ → ℕ) _*_ 1
+
+inspect-*/ : ∀ {d} → (sh : Shape d) → Σ[ x ∈ ℕ ] */ sh ≡ x
+inspect-*/ sh = */ sh , refl
+
+
+module Properties where
+
+  */-++-commutes : ∀ {d₁ d₂} →(sh₁ : Shape d₁) → {sh₂ : Shape d₂} → 
+                   */ (sh₁ ++ sh₂) ≡ (*/ sh₁) * (*/ sh₂)
+  */-++-commutes [] {sh₂} = sym (proj₁ *-identity (*/ sh₂))
+  */-++-commutes (s ∷ sh₁) {sh₂} = begin
+    (s * (*/ (sh₁ ++ sh₂))
+      ≡⟨ cong (λ x → s * x) (*/-++-commutes sh₁) ⟩
+    (s * (*/ sh₁ * */ sh₂))
+      ≡⟨ sym (*-assoc s (*/ sh₁) (*/ sh₂)) ⟩
+    (*/ (s ∷ sh₁) * */ sh₂
+      ∎))
+    where open Relation.Binary.PropositionalEquality.≡-Reasoning
+
 
 module ShapeAgreement where
 

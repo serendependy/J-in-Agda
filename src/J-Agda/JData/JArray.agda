@@ -45,13 +45,18 @@ toJScalar a = shape-bind [] [ a ]
 fromJScalar : {A : Set} → JScalar A → A
 fromJScalar (shape-bind .[] xs ⦃ prop ⦄ ) rewrite prop = Vec-head xs
 
+open import Data.Vec.N-ary using (N-ary ; curryⁿ)
+
+shape-bind-nary : ∀ {A} {d len} → (sh : Shape d) → ⦃ prop : len ≡ */ sh ⦄ → N-ary len A (JArray A sh)
+shape-bind-nary {A = A} {len = len} sh ⦃ prop ⦄ = curryⁿ (λ (xs : Vec A len) → shape-bind sh xs)
+
 private
   module _ where
     jtest : JArray ℕ [ 3 ]
     jtest = shape-bind [ 3 ] (0 ∷ 0 ∷ [ 0 ])
 
-    -- I just realized there's a trick I can use to make this look like:
-    -- shape-bind-nary [ 3 ] 0 0 0
+    jtest' : JArray ℕ (2 ∷ [ 3 ])
+    jtest' = shape-bind-nary (2 ∷ [ 3 ]) 0 1 2 3 4 5
 
 
 private
@@ -135,11 +140,14 @@ private
     _++_ {s} {s'} j k = shape-bind (s + s' ∷ sh) (flatVec j Vec-++ flatVec k)
                         ⦃ sym (distribʳ (*/ sh) s s') ⦄
 
-{-
+    replicate-scalar : A → JArray A sh
+    replicate-scalar a = shape-bind sh (Vec-rep a)
+
     replicate : ∀ {d'} → (sh' : Shape d') → JArray A sh → JArray A (sh' Vec-++ sh)
-    replicate sh' (shape-bind .sh xs ⦃ prop ⦄) rewrite prop =
-    shape-bind (sh' Vec-++ sh) {!!}
--}
+    replicate [] j = j
+    replicate (s ∷ sh') j with Vec-rep {n = s} (replicate sh' j)
+    ...                   | rep-rec = shape-bind (s ∷ sh' Vec-++ sh) (concat (map flatVec rep-rec))
+
 
 open JBinaryFunctions public
 
@@ -169,5 +177,8 @@ pointwise-map₁ : {A B : Set} → ∀ {d} → {sh : Shape d} →
                  (A → B) → JArray A sh → JArray B sh
 pointwise-map₁ f (shape-bind sh xs) = shape-bind sh (map f xs)
 
+indices : ∀ {d} → (sh : Shape d) → JArray (Fin (*/ sh)) sh
+indices sh = shape-bind sh (tabulate (λ z → z))
+
 integers : ∀ {d} → (sh : Shape d) → JArray ℕ sh
-integers sh = shape-bind sh (tabulate toℕ)
+integers sh = pointwise-map₁ toℕ (indices sh)
