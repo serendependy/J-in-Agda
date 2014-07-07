@@ -1,4 +1,49 @@
 open import Data.Nat
+open import Data.Vec
+
+open import Function
+
+module J-Agda.JData.JArray where
+
+Shape : ℕ → Set
+Shape = Vec ℕ
+
+*/ : {d : ℕ} → Shape d → ℕ
+*/ [] = 1
+*/ (x ∷ sh) = x * */ sh
+
+data JArray (A : Set) : ∀ {d} → Shape d → Set where
+  _ρ́_ : ∀ {d} → (sh : Shape d) → (xs : Vec A (*/ sh)) → JArray A sh
+
+JScalar : Set → Set
+JScalar A = JArray A []
+
+toJScalar : ∀ {A : Set} → A → JScalar A
+toJScalar a = [] ρ́ ([ a ])
+
+fromJScalar : ∀ {A : Set} → JScalar A → A
+fromJScalar (.[] ρ́ xs) = head xs
+
+--
+-- projections
+ρ́_ : ∀ {A : Set} {d} → {sh : Shape d} → JArray A sh → Shape d
+ρ́ (sh ρ́ xs) = sh
+
+,́ : ∀ {A : Set} {d} {sh : Shape d} → JArray A sh → Vec A (*/ sh)
+,́ (sh ρ́ xs) = xs
+
+-- head
+↑ : ∀ {A : Set} {ext} {d} {sh : Shape d} → 
+       JArray A (suc ext ∷ sh) → JArray A sh
+↑ (._ ρ́ xs) = _ ρ́ take _ xs
+
+-- tail
+↓_ : ∀ {A : Set} {ext} {d} {sh : Shape d} → 
+      JArray A (suc ext ∷ sh) → JArray A (ext ∷ sh)
+↓_ {ext = ext} {sh = sh} (_ρ́_ ._ xs) = _ ρ́ (drop (*/ sh) xs)
+
+{-
+open import Data.Nat
 open import Data.Nat.Properties using (n∸n≡0)
 open import Data.Fin
   using (Fin ; toℕ)
@@ -182,3 +227,5 @@ indices sh = shape-bind sh (tabulate (λ z → z))
 
 integers : ∀ {d} → (sh : Shape d) → JArray ℕ sh
 integers sh = pointwise-map₁ toℕ (indices sh)
+
+-}
