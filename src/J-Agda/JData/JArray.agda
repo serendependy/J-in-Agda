@@ -1,7 +1,21 @@
 open import Data.Nat
 open import Data.Vec
+  hiding (reverse)
+open import Data.Product
+  hiding (,_)
+
+open import Relation.Binary.PropositionalEquality as PropEq
+  hiding ([_])
+
+open PropEq.≡-Reasoning
 
 open import Function
+
+open import Algebra
+open import Data.Nat.Properties
+
+open CommutativeSemiring commutativeSemiring
+  using (*-identity ; +-identity ; *-assoc ; *-comm)
 
 module J-Agda.JData.JArray where
 
@@ -11,6 +25,31 @@ Shape = Vec ℕ
 */ : {d : ℕ} → Shape d → ℕ
 */ [] = 1
 */ (x ∷ sh) = x * */ sh
+
+reverse : ∀ {d : ℕ} → Shape d → Shape d
+reverse [] = []
+reverse (x ∷ sh) = reverse sh ∷ʳ x
+
+-- helper lemmas
+private
+  module Shape-lemmas where
+    */-∷ʳ : ∀ {d} x → (sh : Shape d) → 
+              */ (sh ∷ʳ x) ≡ x * */ sh
+    */-∷ʳ x [] = refl
+    */-∷ʳ x (x₁ ∷ sh) with */-∷ʳ x sh
+    ...   | eq = begin                 x₁ * */ (sh ∷ʳ x) 
+      ≡⟨ cong (λ y → x₁ * y) eq ⟩      x₁ * (x * */ sh) 
+      ≡⟨ sym (*-assoc x₁ x (*/ sh)) ⟩ (x₁ * x) * */ sh 
+      ≡⟨ cong (λ y → y * */ sh)
+              (*-comm x₁ x) ⟩         (x * x₁) * */ sh
+      ≡⟨ *-assoc x x₁ (*/ sh) ⟩       (x * (x₁ * */ sh) ∎)
+
+    */-reverse : ∀ {d} (sh : Shape d) → */ sh ≡ */ (reverse sh)
+    */-reverse [] = refl
+    */-reverse (x ∷ sh) with */-reverse sh 
+    ...        | eq rewrite */-∷ʳ x (reverse sh) | eq = refl
+
+open Shape-lemmas public
 
 data JArray (A : Set) : ∀ {d} → Shape d → Set where
   _ρ́_ : ∀ {d} → (sh : Shape d) → (xs : Vec A (*/ sh)) → JArray A sh
@@ -26,21 +65,39 @@ fromJScalar (.[] ρ́ xs) = head xs
 
 --
 -- projections
-ρ́_ : ∀ {A : Set} {d} → {sh : Shape d} → JArray A sh → Shape d
-ρ́ (sh ρ́ xs) = sh
+toVec : ∀ {A : Set} {d} {sh : Shape d} → JArray A sh → Vec A (*/ sh)
+toVec (sh ρ́ xs) = xs
 
-,́ : ∀ {A : Set} {d} {sh : Shape d} → JArray A sh → Vec A (*/ sh)
-,́ (sh ρ́ xs) = xs
+_ρ́-≡_ : ∀ {A : Set} {d} {len} → 
+          (sh : Shape d) → Vec A len → ⦃ p : len ≡ */ sh ⦄ → 
+          JArray A sh
+(sh ρ́-≡ xs) ⦃ eq ⦄ rewrite eq = _ ρ́ xs
 
--- head
-↑ : ∀ {A : Set} {ext} {d} {sh : Shape d} → 
-       JArray A (suc ext ∷ sh) → JArray A sh
-↑ (._ ρ́ xs) = _ ρ́ take _ xs
+private
+  module _ {A : Set} {d : ℕ} {sh : Shape d} where
+    -- head
+    headρ : ∀ {ext} → 
+          JArray A (suc ext ∷ sh) → JArray A sh
+    headρ (._ ρ́ xs) = _ ρ́ take _ xs
 
--- tail
-↓_ : ∀ {A : Set} {ext} {d} {sh : Shape d} → 
-      JArray A (suc ext ∷ sh) → JArray A (ext ∷ sh)
-↓_ {ext = ext} {sh = sh} (_ρ́_ ._ xs) = _ ρ́ (drop (*/ sh) xs)
+    -- tail
+    tailρ : ∀ {ext} → 
+           JArray A (suc ext ∷ sh) → JArray A (ext ∷ sh)
+    tailρ {ext = ext} (_ρ́_ ._ xs) = _ ρ́ (drop (*/ sh) xs)
+
+    --ravel
+    ravel : JArray A sh → JArray A ([ */ sh ])
+    ravel j = (_ ρ́-≡ toVec j) ⦃ sym $ proj₂ *-identity $ */ sh ⦄
+
+    -- itemize
+    itemize : JArray A sh → JArray A (1 ∷ sh)
+    itemize j = (_ ρ́-≡ toVec j) ⦃ sym $ proj₂ +-identity $ */ sh ⦄
+
+    -- reverseρ : JArray A sh → JArray A sh
+    -- reverseρ j = _ ρ́ (reverse $ toVec j)
+
+    transpose : JArray A sh → JArray A (reverse sh)
+    transpose j = _ ρ́ subst (Vec A) (*/-reverse sh) (toVec j)
 
 {-
 open import Data.Nat
